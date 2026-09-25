@@ -1,5 +1,8 @@
 # Rebuilds the timetable data every week and publishes the site on GitHub Pages.
 # One-time setup: Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+#
+# Optional: if the automatic timetable download ever fails, set a repository variable
+# GTFS_URL (Settings -> Secrets and variables -> Actions -> Variables) to a GTFS zip URL.
 name: Build data and deploy
 
 on:
@@ -21,12 +24,12 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -37,25 +40,27 @@ jobs:
       # The OSM rail network changes slowly: re-download it once a month to go easy on Overpass.
       - id: month
         run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: pipeline/cache/osm
           key: osm-rail-${{ steps.month.outputs.month }}
 
       - name: Build train data
-        run: python pipeline/build_data.py --days 30
+        env:
+          GTFS_URL: ${{ vars.GTFS_URL }}
+        run: python pipeline/build_data.py --days 30 ${GTFS_URL:+--gtfs "$GTFS_URL"}
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: web
 
   deploy:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
