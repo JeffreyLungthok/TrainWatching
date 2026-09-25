@@ -65,7 +65,14 @@ OVERPASS_ENDPOINTS = (
     "https://overpass.private.coffee/api/interpreter",
 )
 CKAN_PACKAGE = "https://data.opentransportdata.swiss/api/3/action/package_show?id=timetable-{year}-gtfs2020"
-HTTP_HEADERS = {"User-Agent": "swiss-train-map/1.0 (timetable visualisation; python-requests)"}
+DATASET_PAGES = ("https://data.opentransportdata.swiss/en/dataset/timetable-{year}-gtfs2020",
+                 "https://data.opentransportdata.swiss/dataset/timetable-{year}-gtfs2020")
+PERMALINK = "https://data.opentransportdata.swiss/dataset/timetable-{year}-gtfs2020/permalink"
+# Daily copy of the official feed (trains only) published by geOps - used if opentransportdata.swiss
+# refuses the request, which happens from some cloud machines such as GitHub's.
+GEOPS_TRAINS = "https://gtfs.geops.ch/dl/gtfs_train.zip"
+HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; swiss-train-map/1.1; timetable visualisation)",
+                "Accept": "*/*"}
 
 # Routing parameters
 SNAP_RADIUS = 300.0        # m, candidate tracks around a stop
@@ -108,7 +115,8 @@ def download(url: str, dest: Path, what: str) -> Path:
     tmp = dest.with_name(dest.name + ".part")
     log(f"Downloading {what} from {url}")
     with requests.get(url, stream=True, timeout=180, headers=HTTP_HEADERS, allow_redirects=True) as r:
-        r.raise_for_status()
+        if r.status_code >= 400:
+            raise RuntimeError(f"HTTP {r.status_code} for {r.url}")
         total = int(r.headers.get("content-length") or 0)
         done, last = 0, 0.0
         with open(tmp, "wb") as f:
@@ -119,6 +127,9 @@ def download(url: str, dest: Path, what: str) -> Path:
                     pct = f" ({done / total:.0%})" if total else ""
                     log(f"  {done / 1e6:,.0f} MB{pct}")
                     last = time.time()
+    if dest.suffix == ".zip" and not zipfile.is_zipfile(tmp):
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError("the server did not return a zip file")
     tmp.replace(dest)
     log(f"  done: {dest.stat().st_size / 1e6:,.0f} MB")
     return dest
@@ -132,36 +143,63 @@ def timetable_year(day: dt.date) -> int:
     return day.year + 1 if day >= change else day.year
 
 
-def _resource_date(res: dict) -> str:
-    name = str(res.get("name") or res.get("url") or "")
-    digits = re.findall(r"(20\d{2})-?(\d{2})-?(\d{2})", name)
-    if digits:
-        return "".join(digits[-1])
-    return str(res.get("created") or res.get("last_modified") or "")
+def _date_key(text: str) -> str:
+    """YYYYMMDD found in a file name like GTFS_FP2026_20260923.zip or GTFS_FP2026_2025-07-03.zip."""
+    digits = re.findall(r"(20\d{2})-?(\d{2})-?(\d{2})", text or "")
+    return "".join(digits[-1]) if digits else ""
 
 
-def latest_gtfs_url(day: dt.date) -> tuple[str, str]:
+def _official_via_api(year: int):
+    r = requests.get(CKAN_PACKAGE.format(year=year), timeout=60, headers=HTTP_HEADERS)
+    r.raise_for_status()
+    zips = [x for x in r.json()["result"]["resources"]
+            if str(x.get("url", "")).lower().split("?")[0].endswith(".zip") or str(x.get("format", "")).lower() == "zip"]
+    if not zips:
+        return None
+    zips.sort(key=lambda x: _date_key(str(x.get("name") or x.get("url"))) or str(x.get("created") or ""), reverse=True)
+    return zips[0]["url"]
+
+
+def _official_via_page(year: int):
+    """Read the download links from the dataset's web page (the way a person would)."""
+    from urllib.parse import urljoin
+    for page in DATASET_PAGES:
+        url = page.format(year=year)
+        r = requests.get(url, timeout=60, headers=HTTP_HEADERS)
+        r.raise_for_status()
+        links = {urljoin(url, h) for h in re.findall(r'href="([^"]+/download/[^"]+\.zip)"', r.text, flags=re.I)}
+        links = [u for u in links if _date_key(Path(u).name)]
+        if links:
+            return max(links, key=lambda u: _date_key(Path(u).name))
+    return None
+
+
+def gtfs_sources(day: dt.date):
+    """Yields (url, cache file name, description), best source first."""
     year = timetable_year(day)
-    for y in (year, year - 1, year + 1):
+    stamp = day.strftime("%Y%m%d")
+    for finder, how in ((_official_via_api, "catalogue API"), (_official_via_page, "dataset page")):
+        for y in (year, year - 1):
+            try:
+                url = finder(y)
+            except Exception as exc:
+                log(f"  timetable {y} via {how}: {exc}")
+                continue
+            if url:
+                yield url, Path(url.split("?")[0]).name, f"official Swiss GTFS (timetable {y}, found via {how})"
+                break
+    yield PERMALINK.format(year=year), f"GTFS_FP{year}_permalink_{stamp}.zip", f"official Swiss GTFS (timetable {year}, permalink)"
+    yield GEOPS_TRAINS, f"geops_gtfs_train_{stamp}.zip", "geOps mirror of the official feed (trains only)"
+
+
+def fetch_gtfs(cache: Path, day: dt.date) -> Path:
+    for url, name, what in gtfs_sources(day):
         try:
-            r = requests.get(CKAN_PACKAGE.format(year=y), timeout=60, headers=HTTP_HEADERS)
-            r.raise_for_status()
-            resources = r.json()["result"]["resources"]
-        except Exception as exc:  # dataset for that year may not exist (yet)
-            log(f"  timetable-{y}-gtfs2020 not available ({exc})")
-            continue
-        zips = [x for x in resources
-                if str(x.get("url", "")).lower().split("?")[0].endswith(".zip")
-                or str(x.get("format", "")).lower() == "zip"]
-        if not zips:
-            continue
-        zips.sort(key=_resource_date, reverse=True)
-        best = zips[0]
-        name = Path(str(best["url"]).split("?")[0]).name or f"gtfs_{y}.zip"
-        log(f"Latest Swiss GTFS feed: {name} (timetable {y})")
-        return best["url"], name
-    raise SystemExit("Could not locate the Swiss GTFS feed on opentransportdata.swiss. "
-                     "Download it manually and pass --gtfs path/to/file.zip")
+            return download(url, cache / name, what)
+        except Exception as exc:
+            log(f"  {what}: {exc}")
+    raise SystemExit("Could not download the Swiss GTFS timetable from any source. Download a GTFS zip yourself "
+                     "and pass --gtfs path/or/url (in GitHub Actions: set the repository variable GTFS_URL).")
 
 
 # --------------------------------------------------------------------------------------
@@ -263,10 +301,13 @@ def feed_date_range(g: Gtfs) -> tuple[dt.date | None, dt.date | None]:
     return None, None
 
 
-def category_for(route_desc: str, route_type: int) -> str:
+def category_for(route_desc: str, route_type: int, short_name: str = "") -> str:
     d = route_desc.strip().upper()
     if d:
         return d
+    m = re.match(r"\s*([A-Za-z]{1,4})(?=[\s\d]|$)", short_name or "")
+    if m:  # "IC 5", "S3", "IR15", "RE" -> category from the line name
+        return m.group(1).upper()
     return {101: "HS", 102: "IC", 103: "IR", 105: "EN", 106: "R", 107: "PE", 109: "S", 116: "R"}.get(route_type, "R")
 
 
@@ -399,7 +440,7 @@ def load_timetable(gtfs_path: Path, start: dt.date | None, days: int, route_type
         label = short or desc or str(r.route_long_name).strip() or "Train"
         if short and desc and short.isdigit():
             label = f"{desc}{short}"
-        route_out.append([label, category_for(desc, int(r.rtype)), int(r.rtype)])
+        route_out.append([label, category_for(desc, int(r.rtype), short), int(r.rtype)])
     trip_info = dict(zip(trips["trip_id"], zip(trips["route_id"], trips["service_id"],
                                                trips["trip_headsign"], trips["trip_short_name"])))
 
@@ -1149,10 +1190,10 @@ def main(argv=None):
         gtfs_path = Path(args.gtfs)
     else:
         if args.gtfs:
-            url, name = args.gtfs, Path(args.gtfs.split("?")[0]).name or "gtfs.zip"
+            name = Path(args.gtfs.split("?")[0]).name or "gtfs.zip"
+            gtfs_path = download(args.gtfs, cache / name, "GTFS timetable")
         else:
-            url, name = latest_gtfs_url(today_in_switzerland())
-        gtfs_path = download(url, cache / name, "Swiss GTFS timetable")
+            gtfs_path = fetch_gtfs(cache, today_in_switzerland())
     tt = load_timetable(gtfs_path, start, args.days, parse_route_types(args.route_types))
 
     # 2. tracks
