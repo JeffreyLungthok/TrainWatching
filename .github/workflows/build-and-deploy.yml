@@ -1,0 +1,61 @@
+# Rebuilds the timetable data every week and publishes the site on GitHub Pages.
+# One-time setup: Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+name: Build data and deploy
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"      # Mondays 04:17 UTC (new Swiss GTFS feeds appear several times a week)
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["web/**", "pipeline/**", ".github/workflows/**"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+
+      - run: pip install -r pipeline/requirements.txt
+
+      # The OSM rail network changes slowly: re-download it once a month to go easy on Overpass.
+      - id: month
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: pipeline/cache/osm
+          key: osm-rail-${{ steps.month.outputs.month }}
+
+      - name: Build train data
+        run: python pipeline/build_data.py --days 30
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
