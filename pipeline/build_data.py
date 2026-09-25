@@ -27,6 +27,7 @@ import datetime as dt
 import gzip
 import json
 import math
+import os
 import re
 import sys
 import time
@@ -58,12 +59,15 @@ M_PER_DEG_LON = 111_320.0 * math.cos(math.radians(LAT0))
 RAIL_VALUES = ("rail", "narrow_gauge", "light_rail", "tram")
 EXCLUDED_SERVICE = ("yard",)
 
+# overpass-api.de rejects (HTTP 406) requests that look automated, so the mirrors come first.
 OVERPASS_ENDPOINTS = (
-    "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
-    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
     "https://overpass.private.coffee/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 )
+GEOFABRIK_CH = "https://download.geofabrik.de/europe/switzerland-latest.osm.pbf"
+BORDER_FETCH_MINUTES = 15  # time budget for the (optional) cross-border Overpass requests
 CKAN_PACKAGE = "https://data.opentransportdata.swiss/api/3/action/package_show?id=timetable-{year}-gtfs2020"
 DATASET_PAGES = ("https://data.opentransportdata.swiss/en/dataset/timetable-{year}-gtfs2020",
                  "https://data.opentransportdata.swiss/dataset/timetable-{year}-gtfs2020")
@@ -73,6 +77,14 @@ PERMALINK = "https://data.opentransportdata.swiss/dataset/timetable-{year}-gtfs2
 GEOPS_TRAINS = "https://gtfs.geops.ch/dl/gtfs_train.zip"
 HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; swiss-train-map/1.1; timetable visualisation)",
                 "Accept": "*/*"}
+
+
+def overpass_headers() -> dict:
+    """Overpass operators ask for a descriptive User-Agent with a way to reach the author."""
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    contact = os.environ.get("OVERPASS_CONTACT") or (f"https://github.com/{repo}" if repo else "local run")
+    return {"User-Agent": f"swiss-train-map/1.1 (Swiss railway timetable map; {contact})",
+            "Accept": "application/json", "Accept-Encoding": "gzip, deflate"}
 
 # Routing parameters
 SNAP_RADIUS = 300.0        # m, candidate tracks around a stop
@@ -548,10 +560,10 @@ def keep_way(tags: dict) -> bool:
             and tags.get("area") != "yes")
 
 
-def overpass_query(bbox) -> str:
+def overpass_query(bbox, timeout: int = 600) -> str:
     s, w, n, e = bbox
     rail = "|".join(RAIL_VALUES)
-    return (f'[out:json][timeout:600][maxsize:1073741824];\n'
+    return (f'[out:json][timeout:{timeout}][maxsize:1073741824];\n'
             f'way["railway"~"^({rail})$"]["service"!~"^(yard)$"]({s},{w},{n},{e});\n'
             f'out body qt;\n>;\nout skel qt;')
 
@@ -567,7 +579,7 @@ def fetch_overpass_tile(bbox, dest: Path, depth: int = 0) -> list[dict]:
         url = OVERPASS_ENDPOINTS[attempt % len(OVERPASS_ENDPOINTS)]
         try:
             log(f"  Overpass {url.split('/')[2]} bbox={bbox}")
-            r = requests.post(url, data={"data": query}, timeout=1000, headers=HTTP_HEADERS)
+            r = requests.post(url, data={"data": query}, timeout=1000, headers=overpass_headers())
             if r.status_code in (429, 502, 503, 504):
                 raise RuntimeError(f"HTTP {r.status_code}")
             r.raise_for_status()
@@ -632,7 +644,10 @@ def ways_from_pbf(path: Path, bbox):
             self.ways, self.costs, self.coords = [], [], {}
 
         def way(self, way):
-            tags = {t.k: t.v for t in way.tags}
+            railway = way.tags.get("railway")
+            if railway not in RAIL_VALUES:  # cheap check first: most ways are not railways
+                return
+            tags = {"railway": railway, "service": way.tags.get("service"), "area": way.tags.get("area")}
             if not keep_way(tags):
                 return
             refs, inside = [], False
@@ -656,16 +671,10 @@ def ways_from_pbf(path: Path, bbox):
     return ids[order], ll[order, 0], ll[order, 1], h.ways, h.costs
 
 
-def load_osm(args, cache: Path):
-    if args.osm_pbf:
-        return ways_from_pbf(Path(args.osm_pbf), args.bbox)
-    if args.osm_json:
-        p = Path(args.osm_json)
-        opener = gzip.open if p.suffix == ".gz" else open
-        with opener(p, "rt", encoding="utf-8") as f:
-            return ways_from_overpass([json.load(f)])
+def overpass_tiles(bbox, cache: Path):
+    """Whole area from Overpass in 6 tiles (only used with --osm-source overpass)."""
     log("Downloading the OSM rail network from the Overpass API")
-    s, w, n, e = args.bbox
+    s, w, n, e = bbox
     docs = []
     lat_edges = np.linspace(s, n, 3)
     lon_edges = np.linspace(w, e, 4)
@@ -676,6 +685,154 @@ def load_osm(args, cache: Path):
             docs += fetch_overpass_tile(bb, cache / "osm" / f"rail_tile{tile}.json.gz")
             tile += 1
     return ways_from_overpass(docs)
+
+
+def save_rail(path: Path, data) -> None:
+    ids, lon, lat, ways, costs = data
+    lens = np.array([len(w) for w in ways], np.int64)
+    np.savez_compressed(path, ids=ids, lon=lon, lat=lat, lens=lens,
+                        nodes=np.concatenate(ways) if ways else np.zeros(0, np.int64), costs=np.asarray(costs, float))
+
+
+def load_rail(path: Path):
+    z = np.load(path)
+    ways = np.split(z["nodes"], np.cumsum(z["lens"])[:-1]) if len(z["lens"]) else []
+    return z["ids"], z["lon"], z["lat"], ways, z["costs"].tolist()
+
+
+def merge_osm(parts):
+    ids = np.concatenate([p[0] for p in parts])
+    lon = np.concatenate([p[1] for p in parts])
+    lat = np.concatenate([p[2] for p in parts])
+    ids, first = np.unique(ids, return_index=True)
+    ways = [w for p in parts for w in p[3]]
+    costs = [c for p in parts for c in p[4]]
+    return ids, lon[first], lat[first], ways, costs
+
+
+def load_swiss_extract(cache: Path, pbf: Path | None, bbox):
+    """Rail ways from Geofabrik's Switzerland extract (downloaded once, then cached as a small .npz)."""
+    npz = cache / "osm" / "rail_switzerland.npz"
+    if pbf is None and npz.exists():
+        log(f"Using cached OSM rail network: {npz}")
+        return load_rail(npz)
+    downloaded = pbf is None
+    if downloaded:
+        pbf = download(GEOFABRIK_CH, cache / "osm" / "switzerland-latest.osm.pbf",
+                       "OpenStreetMap extract of Switzerland (Geofabrik)")
+    data = ways_from_pbf(pbf, bbox)
+    if downloaded:
+        save_rail(npz, data)
+        pbf.unlink(missing_ok=True)  # the rail subset is all we need
+    return data
+
+
+def border_boxes(tt, covered: np.ndarray, bbox, cell: float = 0.1):
+    """Small areas outside the extract that trains actually run through (legs to/from uncovered stops)."""
+    s, w, n, e = bbox
+    ny, nx = int(math.ceil((n - s) / cell)), int(math.ceil((e - w) / cell))
+    grid = np.zeros((ny, nx), bool)
+    lon, lat = np.asarray(tt["stop_lon"]), np.asarray(tt["stop_lat"])
+    pairs = {(min(a, b), max(a, b)) for p in tt["patterns"] for a, b in zip(p[:-1], p[1:])}
+    inside = (lon >= w) & (lon <= e) & (lat >= s) & (lat <= n)
+    for a, b in pairs:
+        if covered[a] and covered[b]:
+            continue
+        if not (inside[a] and inside[b]):
+            continue  # a stop beyond the map area (Milano, Paris ...) can never be snapped anyway
+        km = math.hypot((lon[a] - lon[b]) * 76, (lat[a] - lat[b]) * 111)
+        t = np.linspace(0, 1, max(2, int(km / 2) + 2))
+        plon, plat = lon[a] + (lon[b] - lon[a]) * t, lat[a] + (lat[b] - lat[a]) * t
+        i = np.floor((plat - s) / cell).astype(int)
+        j = np.floor((plon - w) / cell).astype(int)
+        ok = (i >= 0) & (i < ny) & (j >= 0) & (j < nx)
+        grid[i[ok], j[ok]] = True
+    if not grid.any():
+        return []
+    from scipy.ndimage import binary_dilation
+    grid = binary_dilation(grid, iterations=1)
+    # merge cells into rectangles: horizontal runs, then identical runs in consecutive rows
+    rects, open_runs = [], {}
+    for i in range(ny + 1):
+        runs = set()
+        if i < ny:
+            j = 0
+            while j < nx:
+                if grid[i, j]:
+                    k = j
+                    while k < nx and grid[i, k]:
+                        k += 1
+                    runs.add((j, k))
+                    j = k
+                else:
+                    j += 1
+        for run in list(open_runs):
+            if run not in runs:
+                rects.append((open_runs.pop(run), i, run))
+        for run in runs:
+            open_runs.setdefault(run, i)
+    return [tuple(round(v, 4) for v in (s + i0 * cell, w + j0 * cell, min(n, s + i1 * cell), min(e, w + j1 * cell)))
+            for i0, i1, (j0, j1) in sorted(rects)]
+
+
+def overpass_best_effort(bbox, dest: Path, deadline: float):
+    if dest.exists():
+        with gzip.open(dest, "rt", encoding="utf-8") as f:
+            return json.load(f)
+    for url in OVERPASS_ENDPOINTS:
+        remaining = deadline - time.time()
+        if remaining < 20:
+            return None
+        try:
+            r = requests.post(url, data={"data": overpass_query(bbox, timeout=120)},
+                              timeout=min(180, remaining), headers=overpass_headers())
+            if r.status_code >= 400:
+                raise RuntimeError(f"HTTP {r.status_code}")
+            data = r.json()
+            if "error" in str(data.get("remark", "")).lower():
+                raise RuntimeError(str(data["remark"])[:120])
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            with gzip.open(dest, "wt", encoding="utf-8") as f:
+                json.dump(data, f)
+            return data
+        except Exception as exc:
+            log(f"    {url.split('/')[2]}: {exc}")
+    return None
+
+
+def load_osm(args, cache: Path, tt=None):
+    if args.osm_json:
+        p = Path(args.osm_json)
+        opener = gzip.open if p.suffix == ".gz" else open
+        with opener(p, "rt", encoding="utf-8") as f:
+            return ways_from_overpass([json.load(f)])
+    if getattr(args, "osm_source", "auto") == "overpass":
+        return overpass_tiles(args.bbox, cache)
+
+    base = load_swiss_extract(cache, Path(args.osm_pbf) if args.osm_pbf else None, args.bbox)
+    if tt is None or getattr(args, "no_border", False):
+        return base
+    # Trains that cross the border: fetch the rails around them from Overpass (best effort).
+    covered = RailNetwork(*base).covered(tt["stop_lon"], tt["stop_lat"])
+    boxes = border_boxes(tt, covered, args.bbox)
+    if not boxes:
+        return base
+    log(f"{int((~covered).sum()):,} stops lie outside the extract: fetching tracks for {len(boxes)} "
+        f"small border areas from Overpass (max {BORDER_FETCH_MINUTES} min)")
+    deadline = time.time() + BORDER_FETCH_MINUTES * 60
+    docs = []
+    for k, bb in enumerate(boxes, 1):
+        doc = overpass_best_effort(bb, cache / "osm" / ("border_" + "_".join(f"{v:.4f}" for v in bb) + ".json.gz"), deadline)
+        if doc is not None:
+            docs.append(doc)
+        if time.time() > deadline:
+            log("  time budget used up; the remaining border areas will use straight lines")
+            break
+        if k % 10 == 0 or k == len(boxes):
+            log(f"  border areas: {k}/{len(boxes)} requested, {len(docs)} received")
+    if not docs:
+        return base
+    return merge_osm([base, ways_from_overpass(docs)])
 
 
 # --------------------------------------------------------------------------------------
@@ -737,6 +894,21 @@ class RailNetwork:
         self.seg_cost = cost
         total_km = np.hypot(self.x[segs[:, 1]] - self.x[segs[:, 0]], self.y[segs[:, 1]] - self.y[segs[:, 0]]).sum() / 1000
         log(f"OSM rail network: {len(ways):,} ways, {len(self.segs):,} segments, {total_km:,.0f} km of track")
+
+    def covered(self, lon, lat, radius=SNAP_RADIUS) -> np.ndarray:
+        """True for points that have a track within `radius` metres."""
+        segs = self.segs
+        qx, qy = project(lon, lat)
+        if len(segs) == 0:
+            return np.zeros(len(qx), bool)
+        ax, ay = self.x[segs[:, 0]], self.y[segs[:, 0]]
+        dx, dy = self.x[segs[:, 1]] - ax, self.y[segs[:, 1]] - ay
+        cnt = np.maximum(2, np.ceil(np.hypot(dx, dy) / 50).astype(np.int64) + 1)
+        rep = np.repeat(np.arange(len(segs)), cnt)
+        t = (np.arange(cnt.sum()) - np.repeat(np.cumsum(cnt) - cnt, cnt)) / np.repeat(cnt - 1, cnt)
+        tree = cKDTree(np.c_[ax[rep] + dx[rep] * t, ay[rep] + dy[rep] * t])
+        d, _ = tree.query(np.c_[qx, qy], k=1, distance_upper_bound=radius + 25)
+        return np.isfinite(d)
 
     # -- snapping ------------------------------------------------------------------------
     def snap(self, sx, sy, radius=SNAP_RADIUS, far=SNAP_FAR, per_component=3, max_components=3):
@@ -1171,7 +1343,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--gtfs", help="GTFS zip file or URL (default: newest Swiss feed from opentransportdata.swiss)")
     ap.add_argument("--osm-json", help="Overpass JSON file (optionally .gz) with the rail ways and their nodes")
-    ap.add_argument("--osm-pbf", help="OpenStreetMap .osm.pbf extract, e.g. Geofabrik's switzerland-latest.osm.pbf")
+    ap.add_argument("--osm-pbf", help="use this .osm.pbf file instead of downloading Geofabrik's Switzerland extract")
+    ap.add_argument("--osm-source", choices=("auto", "overpass"), default="auto",
+                    help="auto: Geofabrik extract + Overpass for border areas (default); overpass: everything from Overpass")
+    ap.add_argument("--no-border", action="store_true", help="skip the cross-border Overpass requests")
     ap.add_argument("--days", type=int, default=60, help="number of days to include (default 60)")
     ap.add_argument("--start", help="first service day YYYY-MM-DD (default: yesterday, Swiss time)")
     ap.add_argument("--route-types", default="2,100-199", help="GTFS route_type values treated as trains")
@@ -1197,7 +1372,7 @@ def main(argv=None):
     tt = load_timetable(gtfs_path, start, args.days, parse_route_types(args.route_types))
 
     # 2. tracks
-    node_ids, lon, lat, ways, costs = load_osm(args, cache)
+    node_ids, lon, lat, ways, costs = load_osm(args, cache, tt)
     net = RailNetwork(node_ids, lon, lat, ways, costs)
     del node_ids, lon, lat, ways, costs
 
