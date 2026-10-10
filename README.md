@@ -7,6 +7,7 @@ the **real railway tracks from OpenStreetMap**, not along straight lines between
 - Timetable: the Swiss GTFS feed from [opentransportdata.swiss](https://opentransportdata.swiss/en/cookbook/timetable-cookbook/gtfs/), covering every train of every Swiss railway (SBB, BLS, SOB, RhB, MGB, zb, …) plus cross-border trains. No API key needed.
 - Tracks: `railway=rail|narrow_gauge|light_rail|tram` ways from OpenStreetMap, fetched through the Overpass API or read from a Geofabrik extract.
 - Map: Swiss borders, cantons and lakes (swisstopo, via the `swiss-maps` package), bundled in `web/basemap.json`.
+- Design: the Alpine Earth design system (handmade paper, linen, woven trims, Source Sans 3 and Source Serif 4), bundled in `web/alpine-earth/`. Map colours are read from its tokens, in a light (Paper) and a dark (Night) theme.
 
 There is no backend. A Python script builds two JSON files once, and the website is plain static files.
 
@@ -128,5 +129,6 @@ stations are real, but the tracks between them are invented curves.
 - Tracks: © OpenStreetMap contributors, [ODbL](https://www.openstreetmap.org/copyright). The generated `web/data/network.json` is a database derived from OSM, so if you publish it, it is also covered by the ODbL.
 - Borders and lakes: © swisstopo, via [swiss-maps](https://github.com/interactivethings/swiss-maps) (BSD-3). `pipeline/tools/make_basemap.py` regenerates `web/basemap.json`.
 - deck.gl: MIT licence (`web/vendor/deck.gl-LICENSE.txt`).
+- Fonts: Source Sans 3 and Source Serif 4 by Adobe, SIL Open Font License 1.1.
 
 The map's bottom corner shows the attribution line. Keep it if you publish the site.

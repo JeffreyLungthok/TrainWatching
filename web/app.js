@@ -29,22 +29,25 @@
     { id: 'r', label: 'Regional & other', hint: 'R · RB · others', match: () => true },
   ];
 
-  const THEMES = {
-    dark: {
-      bg: [11, 15, 23], land: [19, 25, 37], landEdge: [52, 63, 86], lake: [17, 38, 62],
-      canton: [255, 255, 255, 11], track: [118, 146, 196, 85], station: [200, 210, 228, 150],
-      label: [180, 190, 208, 230], labelHalo: [11, 15, 23, 230], dotEdge: [11, 15, 23, 255],
-      cats: { long: [255, 92, 92], ir: [255, 181, 71], s: [76, 195, 255], pe: [205, 150, 255], r: [110, 231, 150] },
-      glow: 70,
-    },
-    light: {
-      bg: [231, 235, 240], land: [252, 252, 250], landEdge: [170, 180, 196], lake: [196, 222, 245],
-      canton: [30, 40, 60, 22], track: [84, 100, 130, 95], station: [70, 80, 100, 170],
-      label: [55, 65, 85, 235], labelHalo: [252, 252, 250, 235], dotEdge: [255, 255, 255, 255],
-      cats: { long: [214, 40, 57], ir: [219, 130, 0], s: [0, 116, 201], pe: [142, 68, 173], r: [34, 150, 84] },
-      glow: 55,
-    },
-  };
+  // Map colours come from the Alpine Earth tokens (alpine-earth/tokens.css) of the active theme,
+  // so the map follows the design system in Paper (light) and Night (dark).
+  const THEMES = {};
+  function readTheme() {
+    const css = getComputedStyle(document.documentElement);
+    const tok = (name, alpha) => {
+      const hex = css.getPropertyValue(`--ae-color-${name}`).trim().replace('#', '');
+      const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      return alpha === undefined ? rgb : [...rgb, alpha];
+    };
+    const dark = state.theme === 'dark';
+    return {
+      bg: tok('paper'), land: tok('surface'), landEdge: tok('border-strong'),
+      lake: tok('indigo', dark ? 80 : 95), canton: tok('ink', dark ? 20 : 26), track: tok('ink', dark ? 60 : 80),
+      station: tok('forest-deep', 200), label: tok('ink', 235), labelHalo: tok('paper', 235), dotEdge: tok('surface', 255),
+      cats: { long: tok('clay'), ir: tok('pigment-ochre'), s: tok('indigo'), pe: tok('maroon'), r: tok('forest') },
+      glow: dark ? 70 : 60,
+    };
+  }
 
   const CITIES = [
     ['Zürich', 8.5417, 47.3769, 1], ['Genève', 6.1432, 46.2044, 1], ['Basel', 7.5886, 47.5596, 1],
@@ -423,7 +426,7 @@
         id: `cities-${v}`, data: allCities ? CITIES : CITIES_MAJOR,
         getPosition: (d) => [d[1], d[2]], getText: (d) => d[0],
         getColor: th.label, getSize: (d) => (d[3] === 1 ? 13 : 11.5), sizeUnits: 'pixels',
-        fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
+        fontFamily: '"Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif',
         fontWeight: 600, characterSet: 'auto', getTextAnchor: 'start', getAlignmentBaseline: 'center',
         getPixelOffset: [7, 0], fontSettings: { sdf: true, fontSize: 48, buffer: 6 },
         outlineWidth: 3, outlineColor: th.labelHalo,
@@ -482,7 +485,7 @@
     const c = tr.color;
     return `
       <div class="t-head">
-        <span class="t-badge" style="background:rgb(${c[0]},${c[1]},${c[2]})">${esc(tr.route.label)}</span>
+        <span class="t-badge ae-tag" style="--c:rgb(${c[0]},${c[1]},${c[2]})">${esc(tr.route.label)}</span>
         <span class="t-dest">→ ${esc(D.headsigns[T.headsign[tr.i]])}</span>
       </div>
       <div class="t-row">${status}</div>
@@ -510,6 +513,7 @@
   // ---------------------------------------------------------------------------------------
   function applyTheme() {
     document.documentElement.dataset.theme = state.theme;
+    THEMES[state.theme] = readTheme();
     state.themeVersion++;
     if (!D) return;
     baseLayers = makeBaseLayers();
@@ -577,8 +581,7 @@
     $('time').textContent = hhmmss(clock.secs);
     $('date').textContent = swissDate(simMs);
     const live = state.speed === 1 && Math.abs(simMs - Date.now()) < 5000;
-    const mode = $('mode');
-    mode.classList.toggle('live', live);
+    $('mode').classList.toggle('live', live);
     $('modeText').textContent = live ? 'Live' : (state.speed === 1 ? 'Timetable' : `${state.speed}× speed`);
     $('count').textContent = total.toLocaleString('en-US');
     for (const el of document.querySelectorAll('[data-count]')) el.textContent = counts[el.dataset.count].toLocaleString('en-US');
@@ -654,6 +657,7 @@
       $('loadMsg').innerHTML = 'No train data found. Build it first with<br><code>python pipeline/build_data.py</code><br>and serve the <code>web</code> folder over HTTP (see README).';
       return;
     }
+    try { await document.fonts.load('600 13px "Source Sans 3"'); } catch (e) { /* fall back to system fonts */ }
     D = prepare(basemap, net, tt);
     applyTheme();
     const view = initialView();

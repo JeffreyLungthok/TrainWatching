@@ -1,0 +1,761 @@
+/* Alpine Earth — component stylesheet. Loads after tokens.css.
+   Colours, spacing, radii, shadows and type sizes come from tokens.css (--ae-*, --font-*).
+   Asset URLs are relative to this file (alpine-earth/assets/…); to move the assets, override the
+   --ae-texture-*, --ae-pattern-*, --ae-shape-*, --ae-sign-* and --ae-icon-* properties with your own paths.
+   Haptic by default: the canvas is paper, panels are sheets, controls have thickness, patterns are woven in. */
+
+:root {
+  --ae-font-sans: var(--font-sans);
+  --ae-font-serif: var(--font-serif);
+
+  --ae-duration-fast: 120ms;
+  --ae-duration-normal: 200ms;
+  --ae-duration-emphasis: 280ms;
+  --ae-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ae-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+
+  /* Materials (full surfaces, not overlays) */
+  --ae-texture-paper: url("assets/Materials/paper-cream.webp");
+  --ae-texture-paper-fiber: url("assets/Materials/paper-fiber.webp");
+  --ae-texture-kraft: url("assets/Materials/paper-kraft.webp");
+  --ae-texture-linen: url("assets/Materials/linen-weave.webp");
+  --ae-texture-forest: url("assets/Materials/paper-forest.webp");
+  --ae-texture-forest-deep: url("assets/Materials/paper-forest-deep.webp");
+
+  /* Shapes */
+  --ae-shape-disc-sun: url("assets/Shapes/disc-sun.webp");
+  --ae-shape-disc-clay: url("assets/Shapes/disc-clay.webp");
+  --ae-shape-disc-woven: url("assets/Shapes/disc-woven.webp");
+  --ae-shape-band-forest: url("assets/Shapes/band-forest.webp");
+  --ae-sign-paper: url("assets/Signage/paper-wegweiser.webp");
+  --ae-illustration-grass: url("assets/Illustrations/dried-grass.webp");
+  --ae-illustration-ridge: url("assets/Illustrations/ridge-horizon.webp");
+
+  /* Icons (single-ink SVG, recoloured through a mask) */
+  --ae-icon-compass: url("assets/Icons/compass.svg");
+  --ae-icon-growth: url("assets/Icons/growth.svg");
+  --ae-icon-sprout: url("assets/Icons/sprout.svg");
+  --ae-icon-route: url("assets/Icons/route.svg");
+  --ae-icon-arrow-right: url("assets/Icons/arrow-right.svg");
+
+  /* Patterns (single-ink SVG tiles, coloured through a mask) */
+  --ae-pattern-tibeb-frame: url("assets/Patterns/tibeb-frame.svg");
+  --ae-pattern-tibeb-motif: url("assets/Patterns/tibeb-motif.svg");
+  --ae-pattern-key: url("assets/Patterns/tibetan-key.svg");
+  --ae-pattern-shambu: url("assets/Patterns/shambu-pleats.svg");
+  --ae-pattern-lattice: url("assets/Patterns/rug-lattice.svg");
+  --ae-pattern-contour: url("assets/Patterns/contour.svg");
+  --ae-pattern-hachure: url("assets/Patterns/hachure.svg");
+  --ae-pattern-schindel: url("assets/Patterns/schindel.svg");
+  --ae-pattern-scherenschnitt: url("assets/Patterns/scherenschnitt.svg");
+  --ae-pattern-weave: url("assets/Patterns/basket-weave.svg");
+  --ae-edge-torn: url("assets/Patterns/torn-edge.svg");
+
+  /* Canvas: cream handmade paper under a 40% wash of the paper colour */
+  --ae-canvas-image: var(--ae-texture-paper);
+  --ae-canvas-wash: rgba(247, 245, 239, 0.4);
+
+  /* The signature paper surface follows the theme */
+  --ae-surface-paper-image: var(--ae-texture-paper);
+  --ae-surface-paper-color: var(--ae-color-limestone);
+}
+
+[data-theme="dark"] {
+  --ae-canvas-image: var(--ae-texture-forest-deep);
+  --ae-canvas-wash: rgba(30, 33, 29, 0.4);
+  --ae-surface-paper-image: var(--ae-texture-forest-deep);
+  --ae-surface-paper-color: var(--ae-color-limestone);
+}
+
+/* ---------- Baseline ---------- */
+
+body {
+  margin: 0;
+  background-color: var(--ae-color-paper);
+  background-image: linear-gradient(var(--ae-canvas-wash), var(--ae-canvas-wash)), var(--ae-canvas-image);
+  background-size: cover;
+  background-attachment: fixed;
+  color: var(--ae-color-ink);
+  font-family: var(--ae-font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip; /* collage pieces may stick out past their sheets */
+}
+
+:where(h1, h2, h3, h4, p) { margin: 0; text-wrap: pretty; }
+:where(h1, h2, h3, .display) { text-wrap: balance; }
+
+:where(a) { color: var(--ae-color-forest-deep); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+:where(a:hover) { color: var(--ae-color-ink); text-decoration-thickness: 2px; }
+:where(a:visited) { color: var(--ae-color-indigo); }
+
+:focus-visible {
+  outline: 2px solid var(--ae-color-forest-deep);
+  outline-offset: 3px;
+}
+
+.ae-muted { color: var(--ae-color-ink-muted); }
+.ae-num { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Wegweiser: links to places ---------- */
+
+.ae-wegweiser {
+  --ae-sign-h: 48px;
+  --ae-sign-tip: 26px;
+  --ae-sign-cap: 30px;
+  --ae-sign-tipfill: var(--ae-color-wegweiser);
+  --ae-sign-band: var(--ae-color-wegweiser);
+  --ae-sign-poly: polygon(0 0, calc(100% - var(--ae-sign-tip)) 0, 100% 50%, calc(100% - var(--ae-sign-tip)) 100%, 0 100%);
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ae-space-6);
+  min-width: 15rem;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: var(--ae-sign-h);
+  padding: var(--ae-space-2) calc(var(--ae-sign-tip) + var(--ae-space-4)) var(--ae-space-2) calc(var(--ae-sign-cap) + var(--ae-space-4));
+  color: var(--ae-color-on-wegweiser);
+  font-family: var(--ae-font-sans);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  filter: drop-shadow(0 2px 1.5px rgba(20, 20, 18, 0.28)) drop-shadow(0 6px 8px rgba(20, 20, 18, 0.14));
+  transition: transform var(--ae-duration-normal) var(--ae-ease-out), filter var(--ae-duration-normal) var(--ae-ease-out);
+}
+
+/* edge, then fill: the anchor itself stays unclipped so the focus ring shows */
+.ae-wegweiser::before,
+.ae-wegweiser::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  clip-path: var(--ae-sign-poly);
+  border-radius: var(--ae-radius-sign);
+}
+.ae-wegweiser::before { inset: 0; background: var(--ae-color-sign-edge); }
+.ae-wegweiser::after {
+  inset: 1px;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 38%, rgba(0, 0, 0, 0) 70%, rgba(0, 0, 0, 0.10)),
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 0 1px, rgba(0, 0, 0, 0.035) 1px 2px),
+    radial-gradient(circle at center, var(--ae-color-sign-edge) 0 2.5px, transparent 3px) calc(var(--ae-sign-cap) / 2 - 4px) 22% / 8px 8px no-repeat,
+    radial-gradient(circle at center, var(--ae-color-sign-edge) 0 2.5px, transparent 3px) calc(var(--ae-sign-cap) / 2 - 4px) 78% / 8px 8px no-repeat,
+    linear-gradient(to bottom, var(--ae-sign-tipfill) 0 34%, var(--ae-sign-band) 34% 66%, var(--ae-sign-tipfill) 66%) right / calc(var(--ae-sign-tip) + 6px) 100% no-repeat,
+    linear-gradient(to right, var(--ae-color-sign-white) 0 var(--ae-sign-cap), var(--ae-color-wegweiser) var(--ae-sign-cap)) ;
+}
+
+.ae-wegweiser__ziel { flex: 1 1 auto; min-width: 0; }
+.ae-wegweiser__zeit {
+  flex: none;
+  margin-left: auto;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ae-wegweiser:hover { color: var(--ae-color-on-wegweiser); transform: translateX(3px); }
+.ae-wegweiser:hover .ae-wegweiser__ziel { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.18em; }
+.ae-wegweiser:visited { color: var(--ae-color-on-wegweiser); }
+.ae-wegweiser:active { transform: translate(1px, 1px); filter: drop-shadow(0 1px 0.5px rgba(20, 20, 18, 0.3)); }
+
+/* External link: white-red-white tip (Bergwanderweg) */
+.ae-wegweiser--bergweg { --ae-sign-tipfill: var(--ae-color-sign-white); --ae-sign-band: var(--ae-color-bergweg); }
+/* Download or file: white-blue-white tip (Alpinwanderweg) */
+.ae-wegweiser--alpinweg { --ae-sign-tipfill: var(--ae-color-sign-white); --ae-sign-band: var(--ae-color-alpinweg); }
+
+/* Pointing left: back, previous */
+.ae-wegweiser--links {
+  --ae-sign-poly: polygon(var(--ae-sign-tip) 0, 100% 0, 100% 100%, var(--ae-sign-tip) 100%, 0 50%);
+  flex-direction: row-reverse;
+  padding: var(--ae-space-2) calc(var(--ae-sign-cap) + var(--ae-space-4)) var(--ae-space-2) calc(var(--ae-sign-tip) + var(--ae-space-4));
+}
+.ae-wegweiser--links::after {
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 38%, rgba(0, 0, 0, 0) 70%, rgba(0, 0, 0, 0.10)),
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 0 1px, rgba(0, 0, 0, 0.035) 1px 2px),
+    radial-gradient(circle at center, var(--ae-color-sign-edge) 0 2.5px, transparent 3px) calc(100% - var(--ae-sign-cap) / 2 + 4px) 22% / 8px 8px no-repeat,
+    radial-gradient(circle at center, var(--ae-color-sign-edge) 0 2.5px, transparent 3px) calc(100% - var(--ae-sign-cap) / 2 + 4px) 78% / 8px 8px no-repeat,
+    linear-gradient(to bottom, var(--ae-sign-tipfill) 0 34%, var(--ae-sign-band) 34% 66%, var(--ae-sign-tipfill) 66%) left / calc(var(--ae-sign-tip) + 6px) 100% no-repeat,
+    linear-gradient(to left, var(--ae-color-sign-white) 0 var(--ae-sign-cap), var(--ae-color-wegweiser) var(--ae-sign-cap));
+}
+.ae-wegweiser--links .ae-wegweiser__zeit { margin-left: 0; margin-right: auto; }
+.ae-wegweiser--links .ae-wegweiser__ziel { text-align: right; }
+.ae-wegweiser--links:hover { transform: translateX(-3px); }
+
+/* Compact: inline in running text or dense lists */
+.ae-wegweiser--klein { --ae-sign-h: 34px; --ae-sign-tip: 18px; --ae-sign-cap: 18px; min-width: 0; font-size: 15px; gap: var(--ae-space-3); }
+.ae-wegweiser--klein::after {
+  background:
+    linear-gradient(to bottom, var(--ae-sign-tipfill) 0 34%, var(--ae-sign-band) 34% 66%, var(--ae-sign-tipfill) 66%) right / calc(var(--ae-sign-tip) + 4px) 100% no-repeat,
+    linear-gradient(to right, var(--ae-color-sign-white) 0 var(--ae-sign-cap), var(--ae-color-wegweiser) var(--ae-sign-cap));
+}
+
+/* Mast: several signs on one post, for a set of destinations */
+.ae-wegweiser-mast {
+  position: relative;
+  display: grid;
+  justify-items: stretch;
+  gap: var(--ae-space-2);
+  width: min(26rem, 100%);
+  padding-left: 14px;
+  margin: 0;
+  list-style: none;
+}
+.ae-wegweiser-mast::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: calc(-1 * var(--ae-space-3));
+  bottom: calc(-1 * var(--ae-space-8));
+  width: 10px;
+  border-radius: 2px 2px 0 0;
+  background: var(--ae-color-sign-edge);
+}
+.ae-wegweiser-mast > li { display: contents; }
+.ae-wegweiser-mast .ae-wegweiser { width: 100%; }
+
+/* Paper Wegweiser: editorial call to action on the handmade-paper arrow */
+.ae-wegweiser--papier {
+  --ae-sign-tip: 0px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  width: min(30rem, 100%);
+  aspect-ratio: 1600 / 468;
+  min-height: 0;
+  padding: 0 18% 0 8%;
+  background: var(--ae-color-wegweiser) var(--ae-sign-paper) center / 100% 100% no-repeat;
+  -webkit-mask: var(--ae-sign-paper) center / 100% 100% no-repeat;
+  mask: var(--ae-sign-paper) center / 100% 100% no-repeat;
+  color: var(--ae-color-on-material);
+  font-size: clamp(18px, 2.4vw, 24px);
+}
+.ae-wegweiser--papier::before, .ae-wegweiser--papier::after { content: none; }
+.ae-wegweiser--papier { filter: none; }
+.ae-wegweiser--papier .ae-wegweiser__ziel { flex: none; }
+.ae-wegweiser--papier .ae-wegweiser__zeit { margin: 0; font-size: 15px; font-weight: 500; }
+.ae-wegweiser--papier:hover { color: var(--ae-color-on-material); }
+.ae-wegweiser--papier:focus-visible { outline: none; filter: drop-shadow(0 0 0 var(--ae-color-forest-deep)) drop-shadow(0 0 2px var(--ae-color-forest-deep)); }
+
+/* ---------- Standort: the location plate ---------- */
+
+.ae-standort {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--ae-space-6);
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: var(--ae-space-2) var(--ae-space-4);
+  background: var(--ae-color-sign-white);
+  color: var(--ae-color-on-wegweiser);
+  border: 1px solid var(--ae-color-sign-edge);
+  border-radius: var(--ae-radius-sm);
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.6), rgba(0, 0, 0, 0.05)), repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.02) 0 1px, rgba(255, 255, 255, 0.04) 1px 2px);
+  box-shadow: var(--ae-shadow-sm), inset 0 -2px 0 rgba(0, 0, 0, 0.06);
+  font-family: var(--ae-font-sans);
+}
+.ae-standort__name { font-size: 17px; font-weight: 700; line-height: 1.2; }
+.ae-standort__meta { margin-left: auto; font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- Wegmarke: inline trail markers ---------- */
+
+.ae-wegmarke {
+  display: inline-block;
+  flex: none;
+  width: 0.62em;
+  height: 0.62em;
+  margin: 0 0.35em 0.08em 0.1em;
+  vertical-align: middle;
+  background: var(--ae-color-wegweiser);
+  box-shadow: 0 0 0 1px var(--ae-color-sign-edge);
+  transform: rotate(45deg);
+}
+.ae-wegmarke--bergweg,
+.ae-wegmarke--alpinweg {
+  width: 1.1em;
+  height: 0.66em;
+  transform: none;
+  border-radius: 1px;
+  background: linear-gradient(to bottom, var(--ae-color-sign-white) 0 33%, var(--ae-wegmarke-band, var(--ae-color-bergweg)) 33% 67%, var(--ae-color-sign-white) 67%);
+}
+.ae-wegmarke--alpinweg { --ae-wegmarke-band: var(--ae-color-alpinweg); }
+
+.ae-route { display: grid; gap: var(--ae-space-3); margin: 0; padding: 0; list-style: none; }
+.ae-route > li { display: flex; align-items: baseline; gap: var(--ae-space-2); }
+
+/* ---------- Buttons: blocks with thickness ---------- */
+
+.ae-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ae-space-2);
+  min-height: 44px;
+  padding: 10px var(--ae-space-5);
+  border: 1px solid transparent;
+  border-radius: var(--ae-radius-md);
+  font: 600 16px/1.2 var(--ae-font-sans);
+  text-decoration: none;
+  cursor: pointer;
+  background-size: cover;
+  background-position: center;
+  background-blend-mode: soft-light;
+  transition: transform var(--ae-duration-fast) var(--ae-ease-out), box-shadow var(--ae-duration-fast) var(--ae-ease-out), background-color var(--ae-duration-fast) var(--ae-ease-out);
+}
+.ae-btn:active:not(:disabled) { transform: translateY(2px); }
+.ae-btn--primary { background-color: var(--ae-color-forest); background-image: var(--ae-texture-forest); color: var(--ae-color-ink-inverse); box-shadow: var(--ae-shadow-raised); }
+.ae-btn--primary:hover { background-color: var(--ae-color-forest-deep); }
+.ae-btn--primary:active:not(:disabled) { box-shadow: var(--ae-shadow-pressed); }
+.ae-btn--secondary { background-color: var(--ae-color-surface); background-image: var(--ae-texture-paper); background-blend-mode: multiply; color: var(--ae-color-ink); border-color: var(--ae-color-border-strong); box-shadow: var(--ae-shadow-raised-quiet); }
+.ae-btn--secondary:hover { background-color: var(--ae-color-limestone); }
+.ae-btn--secondary:active:not(:disabled) { box-shadow: var(--ae-shadow-pressed); }
+.ae-btn--tertiary { background: transparent; color: var(--ae-color-forest-deep); padding-inline: var(--ae-space-2); }
+.ae-btn--tertiary:hover { text-decoration: underline; text-underline-offset: 0.18em; }
+.ae-btn--danger { background-color: var(--ae-color-danger); background-image: var(--ae-texture-kraft); color: var(--ae-color-ink-inverse); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35), 0 4px 8px rgba(41, 43, 40, 0.2); }
+.ae-btn--danger:active:not(:disabled) { box-shadow: var(--ae-shadow-pressed); }
+.ae-btn:disabled, .ae-btn[aria-disabled="true"] { background: var(--ae-color-limestone); color: var(--ae-color-ink-muted); border-color: var(--ae-color-border); box-shadow: var(--ae-shadow-deboss); cursor: not-allowed; }
+.ae-btn[aria-busy="true"]::before {
+  content: "";
+  width: 14px; height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: ae-spin 0.8s linear infinite;
+}
+@keyframes ae-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Fields ---------- */
+
+.ae-field { display: grid; gap: var(--ae-space-2); align-content: start; max-width: 26rem; }
+.ae-field__label { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; line-height: 1.35; color: inherit; }
+.ae-field__optional { font-weight: 400; color: inherit; }
+.ae-field__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px var(--ae-space-3);
+  background: var(--ae-color-surface);
+  color: var(--ae-color-ink);
+  border: 1px solid var(--ae-color-border-strong);
+  border-radius: var(--ae-radius-md);
+  box-shadow: var(--ae-shadow-deboss);
+  font: 400 16px/1.4 var(--ae-font-sans);
+}
+.ae-field__input::placeholder { color: var(--ae-color-ink-muted); }
+.ae-field__input:focus-visible { outline: 2px solid var(--ae-color-forest-deep); outline-offset: 1px; border-color: var(--ae-color-forest-deep); }
+.ae-field__help { font-size: 14px; line-height: 1.45; color: inherit; }
+.ae-field--error .ae-field__input { border-color: var(--ae-color-danger); border-width: 2px; padding: 9px 11px; }
+.ae-field__error { display: flex; gap: var(--ae-space-1); font-size: 14px; line-height: 1.45; font-weight: 600; color: var(--ae-color-danger); }
+
+/* ---------- Material surfaces ---------- */
+
+.ae-surface {
+  position: relative;
+  isolation: isolate;
+  padding: var(--ae-space-8);
+  border-radius: var(--ae-radius-lg);
+  box-shadow: var(--ae-shadow-sheet);
+  background-size: cover;
+  background-position: center;
+  color: var(--ae-color-ink);
+}
+.ae-surface--paper { background-color: var(--ae-surface-paper-color); background-image: var(--ae-surface-paper-image); }
+.ae-surface--fiber { background-color: var(--ae-color-limestone); background-image: var(--ae-texture-paper-fiber); color: var(--ae-color-on-material); }
+/* the weave is busy: a fixed limestone wash (#e9e5da at 55%) keeps text legible; linen keeps its colour in both themes */
+.ae-surface--linen { background-color: var(--ae-color-limestone); background-image: linear-gradient(rgba(233, 229, 218, 0.55), rgba(233, 229, 218, 0.55)), var(--ae-texture-linen); color: var(--ae-color-on-material); }
+.ae-surface--kraft { background-color: var(--ae-color-limestone); background-image: var(--ae-texture-kraft); color: var(--ae-color-on-material); }
+.ae-surface--forest { background-color: var(--ae-color-forest-deep); background-image: var(--ae-texture-forest); color: var(--ae-color-on-forest-material); }
+.ae-surface--band {
+  box-shadow: none;
+  filter: drop-shadow(0 4px 6px rgba(20, 20, 18, 0.25));
+  background: var(--ae-shape-band-forest) center / 100% 100% no-repeat;
+  border-radius: var(--ae-radius-xl);
+  color: var(--ae-color-on-forest-material);
+}
+/* Light materials stay light in Night, so everything inside them uses the Paper values
+   (copied from tokens.json, light theme). */
+[data-theme="dark"] :is(.ae-surface--fiber, .ae-surface--linen, .ae-surface--kraft, .ae-nav) {
+  --ae-color-surface: #ffffff;
+  --ae-color-limestone: #e9e5da;
+  --ae-color-border: #d8d4c9;
+  --ae-color-border-strong: #7e8377;
+  --ae-color-ink: #292b28;
+  --ae-color-ink-muted: #686b63;
+  --ae-color-ink-inverse: #ffffff;
+  --ae-color-forest: #526451;
+  --ae-color-forest-deep: #3d4c3d;
+  --ae-color-maroon: #704653;
+  --ae-color-indigo: #48556d;
+  --ae-color-success: #42684f;
+  --ae-color-warning: #956b2d;
+  --ae-color-danger: #a3433d;
+  --ae-color-info: #435f77;
+  --ae-shadow-sheet: 0 1px 1px rgba(41, 43, 40, 0.10), 0 3px 6px rgba(41, 43, 40, 0.08), 0 12px 20px -10px rgba(41, 43, 40, 0.22);
+  --ae-shadow-raised: 0 3px 0 #2c372c, 0 4px 8px rgba(41, 43, 40, 0.22);
+  --ae-shadow-raised-quiet: 0 2px 0 #b9b3a4, 0 3px 6px rgba(41, 43, 40, 0.14);
+  --ae-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.30);
+  --ae-shadow-deboss: inset 0 2px 3px rgba(41, 43, 40, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.70);
+  --ae-shadow-letterpress: 0 1px 0 rgba(255, 255, 255, 0.65);
+  color-scheme: light;
+}
+
+/* Overlay variant: a whisper of grain on a solid palette colour */
+.ae-surface--grain { background-color: var(--ae-color-surface); }
+.ae-surface--grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--ae-texture-paper-fiber) center / cover;
+  opacity: var(--ae-texture-standard);
+}
+
+/* ---------- Feature card ---------- */
+
+.ae-feature {
+  box-shadow: var(--ae-shadow-stack);
+  display: grid;
+  gap: var(--ae-space-4);
+  align-content: start;
+  max-width: 34rem;
+}
+.ae-feature__eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: inherit; }
+.ae-feature__body { max-width: 52ch; }
+.ae-feature__grass {
+  position: absolute;
+  z-index: -1;
+  right: -24px;
+  bottom: -32px;
+  width: 132px;
+  aspect-ratio: 1000 / 1246;
+  background: var(--ae-illustration-grass) center / contain no-repeat;
+  opacity: 0.9;
+  pointer-events: none;
+}
+@media (max-width: 640px) { .ae-feature__grass { right: 0; width: 96px; } }
+
+/* ---------- Medallion: featured figure on a material disc ---------- */
+
+.ae-medallion { display: inline-grid; justify-items: center; gap: var(--ae-space-2); text-align: center; }
+.ae-medallion__disc {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--ae-color-ochre) var(--ae-shape-disc-sun) center / cover no-repeat;
+  color: var(--ae-color-on-material);
+  font: 600 32px/1 var(--ae-font-serif);
+  font-variant-numeric: tabular-nums lining-nums;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  box-shadow: var(--ae-shadow-sheet), inset 0 -3px 6px rgba(0, 0, 0, 0.12), inset 0 2px 3px rgba(255, 255, 255, 0.35);
+}
+.ae-medallion--clay .ae-medallion__disc { background-color: var(--ae-color-clay); background-image: var(--ae-shape-disc-clay); }
+.ae-medallion--woven .ae-medallion__disc { background-color: var(--ae-color-limestone); background-image: var(--ae-shape-disc-woven); }
+.ae-medallion__label { font-size: 14px; line-height: 1.45; color: var(--ae-color-ink); max-width: 14ch; }
+
+/* ---------- Notice ---------- */
+
+.ae-notice {
+  --ae-notice-tone: var(--ae-color-info);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--ae-space-1) var(--ae-space-3);
+  max-width: 40rem;
+  padding: var(--ae-space-4) var(--ae-space-5);
+  background: var(--ae-color-surface);
+  border: 1px solid var(--ae-notice-tone);
+  border-radius: var(--ae-radius-md);
+  outline: 1.5px dashed var(--ae-notice-tone);
+  outline-offset: -6px;
+  box-shadow: var(--ae-shadow-sheet);
+  color: var(--ae-color-ink);
+}
+.ae-notice::before {
+  content: "";
+  grid-row: span 2;
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  background: var(--ae-notice-tone);
+}
+.ae-notice__title { font-weight: 700; color: var(--ae-notice-tone); }
+.ae-notice__text { font-size: 15px; }
+.ae-notice--success { --ae-notice-tone: var(--ae-color-success); }
+.ae-notice--success::before { border-radius: 50%; }
+.ae-notice--warning { --ae-notice-tone: var(--ae-color-warning); }
+.ae-notice--warning::before { transform: rotate(45deg); }
+.ae-notice--warning .ae-notice__title { color: var(--ae-color-ink); }
+.ae-notice--danger { --ae-notice-tone: var(--ae-color-danger); }
+.ae-notice--danger::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); width: 12px; height: 11px; }
+
+/* ---------- Navigation ---------- */
+
+.ae-nav {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ae-space-4) var(--ae-space-8);
+  padding: var(--ae-space-4) var(--ae-space-6) calc(var(--ae-space-4) + 22px);
+  background-color: var(--ae-color-limestone);
+  background-image: linear-gradient(rgba(233, 229, 218, 0.6), rgba(233, 229, 218, 0.6)), var(--ae-texture-linen);
+  background-size: cover;
+  color: var(--ae-color-on-material);
+  box-shadow: var(--ae-shadow-sheet);
+}
+.ae-nav::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 21px;
+  background: var(--ae-color-pigment-forest);
+  -webkit-mask: var(--ae-pattern-tibeb-frame) left bottom / auto 21px repeat-x;
+  mask: var(--ae-pattern-tibeb-frame) left bottom / auto 21px repeat-x;
+}
+.ae-nav__home { font-weight: 700; font-size: 18px; color: var(--ae-color-on-material); text-decoration: none; letter-spacing: -0.005em; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
+.ae-nav__home:visited, .ae-nav__home:hover { color: var(--ae-color-on-material); }
+.ae-nav__list { display: flex; flex-wrap: wrap; gap: var(--ae-space-1) var(--ae-space-6); margin: 0 0 0 auto; padding: 0; list-style: none; }
+.ae-nav__link {
+  display: inline-block;
+  padding: var(--ae-space-2) 0;
+  color: var(--ae-color-on-material);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+}
+.ae-nav__link:visited { color: var(--ae-color-on-material); }
+.ae-nav__link:hover { color: var(--ae-color-on-material); border-bottom-color: rgba(41, 43, 40, 0.45); }
+.ae-nav__link[aria-current="page"] { font-weight: 700; border-bottom-color: var(--ae-color-on-material); }
+
+/* ---------- Data table ---------- */
+
+.ae-table-wrap { overflow-x: auto; max-width: 100%; }
+.ae-table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.45; background: var(--ae-color-surface); }
+.ae-table caption { text-align: left; padding-bottom: var(--ae-space-2); font-weight: 600; font-size: 16px; }
+.ae-table { box-shadow: var(--ae-shadow-sheet); }
+.ae-table th { text-align: left; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; padding: var(--ae-space-2) var(--ae-space-3); background: var(--ae-color-limestone) linear-gradient(rgba(233, 229, 218, 0.55), rgba(233, 229, 218, 0.55)); background-image: linear-gradient(rgba(233, 229, 218, 0.55), rgba(233, 229, 218, 0.55)), var(--ae-texture-linen); background-size: cover; color: var(--ae-color-on-material); }
+.ae-table td { padding: var(--ae-space-3); border-bottom: 1px solid var(--ae-color-border); vertical-align: top; }
+.ae-table .ae-num, .ae-table th.ae-num { text-align: right; }
+.ae-table tbody tr:hover { background: var(--ae-color-paper); }
+
+/* ---------- Tag ---------- */
+
+.ae-tag { box-shadow: var(--ae-shadow-raised-quiet); background: var(--ae-color-surface); display: inline-flex; align-items: center; gap: var(--ae-space-1); padding: 2px var(--ae-space-2); border: 1px solid var(--ae-color-border-strong); border-radius: var(--ae-radius-sm); font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--ae-color-ink); }
+
+/* ---------- Hero ---------- */
+
+.ae-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: var(--ae-space-10);
+  align-items: center;
+}
+.ae-hero__text { display: grid; gap: var(--ae-space-5); justify-items: start; min-width: 0; }
+.ae-hero__lead { max-width: 46ch; }
+.ae-hero__image { width: 100%; height: auto; display: block; border-radius: var(--ae-radius-sm); box-shadow: var(--ae-shadow-sheet); }
+@media (max-width: 760px) {
+  .ae-hero { grid-template-columns: 1fr; gap: var(--ae-space-6); }
+  .ae-hero__image { order: -1; }
+}
+
+/* ---------- Horizon divider ---------- */
+
+.ae-horizon {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2000 / 674;
+  max-height: 180px;
+  background: var(--ae-illustration-ridge) center bottom / cover no-repeat;
+  border: 0;
+  margin: 0;
+}
+
+/* ---------- Icons ---------- */
+
+.ae-icon {
+  display: inline-block;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+  background: currentColor;
+  -webkit-mask: var(--ae-icon) center / contain no-repeat;
+  mask: var(--ae-icon) center / contain no-repeat;
+}
+.ae-icon--compass { --ae-icon: var(--ae-icon-compass); }
+.ae-icon--growth { --ae-icon: var(--ae-icon-growth); }
+.ae-icon--sprout { --ae-icon: var(--ae-icon-sprout); }
+.ae-icon--route { --ae-icon: var(--ae-icon-route); }
+.ae-icon--arrow-right { --ae-icon: var(--ae-icon-arrow-right); }
+.ae-icon--lg { width: 40px; height: 40px; }
+
+/* ==========================================================================
+   Haptic layer: patterns, trims, edges, stitching, letterpress
+   ========================================================================== */
+
+/* Pattern field: put .ae-pattern and one modifier on any block */
+.ae-pattern {
+  --ae-pattern: var(--ae-pattern-contour);
+  --ae-pattern-size: 240px 240px;
+  --ae-pattern-ink: var(--ae-color-ink);
+  --ae-pattern-opacity: var(--ae-pattern-quiet);
+  position: relative;
+  isolation: isolate;
+}
+.ae-pattern::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--ae-pattern-ink);
+  opacity: var(--ae-pattern-opacity);
+  -webkit-mask: var(--ae-pattern) 0 0 / var(--ae-pattern-size) repeat;
+  mask: var(--ae-pattern) 0 0 / var(--ae-pattern-size) repeat;
+}
+.ae-pattern--contour { --ae-pattern: var(--ae-pattern-contour); --ae-pattern-size: 240px 240px; }
+.ae-pattern--hachure { --ae-pattern: var(--ae-pattern-hachure); --ae-pattern-size: 120px 120px; }
+.ae-pattern--lattice { --ae-pattern: var(--ae-pattern-lattice); --ae-pattern-size: 36px 36px; }
+.ae-pattern--schindel { --ae-pattern: var(--ae-pattern-schindel); --ae-pattern-size: 32px 28px; }
+.ae-pattern--weave { --ae-pattern: var(--ae-pattern-weave); --ae-pattern-size: 24px 24px; }
+.ae-pattern--key { --ae-pattern: var(--ae-pattern-key); --ae-pattern-size: 32px 20px; }
+.ae-pattern--scherenschnitt { --ae-pattern: var(--ae-pattern-scherenschnitt); --ae-pattern-size: 64px 48px; }
+.ae-pattern--standard { --ae-pattern-opacity: var(--ae-pattern-standard); }
+.ae-pattern--bold { --ae-pattern-opacity: var(--ae-pattern-bold); }
+/* pigment inks */
+.ae-pattern--maroon { --ae-pattern-ink: var(--ae-color-pigment-maroon); }
+.ae-pattern--ochre { --ae-pattern-ink: var(--ae-color-pigment-ochre); }
+.ae-pattern--forest { --ae-pattern-ink: var(--ae-color-pigment-forest); }
+.ae-pattern--indigo { --ae-pattern-ink: var(--ae-color-pigment-indigo); }
+.ae-pattern--cotton { --ae-pattern-ink: var(--ae-color-pigment-cotton); }
+
+/* Text plate: the calm layer text sits on when the ground is busy */
+.ae-plate {
+  position: relative;
+  padding: var(--ae-space-5) var(--ae-space-6);
+  background-color: var(--ae-color-surface);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.55)), var(--ae-texture-paper-fiber);
+  background-size: cover;
+  border-radius: var(--ae-radius-sm);
+  box-shadow: var(--ae-shadow-sheet);
+  color: var(--ae-color-ink);
+}
+[data-theme="dark"] .ae-plate { background-image: linear-gradient(rgba(39, 42, 37, 0.82), rgba(39, 42, 37, 0.82)), var(--ae-texture-forest-deep); }
+
+/* Trims: woven and cut borders. Decorative: aria-hidden="true". */
+.ae-trim {
+  --ae-trim-h: 42px;
+  --ae-trim-ground: transparent;
+  --ae-trim-a: var(--ae-color-pigment-forest);
+  --ae-trim-b: var(--ae-color-pigment-clay);
+  --ae-trim-mask-a: var(--ae-pattern-tibeb-frame);
+  --ae-trim-mask-b: var(--ae-pattern-tibeb-motif);
+  position: relative;
+  display: block;
+  height: var(--ae-trim-h);
+  background: var(--ae-trim-ground);
+  border: 0;
+  margin: 0;
+}
+.ae-trim::before, .ae-trim::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  -webkit-mask: var(--ae-trim-mask) center / auto 100% repeat-x;
+  mask: var(--ae-trim-mask) center / auto 100% repeat-x;
+}
+.ae-trim::before { --ae-trim-mask: var(--ae-trim-mask-a); background: var(--ae-trim-a); }
+.ae-trim::after { --ae-trim-mask: var(--ae-trim-mask-b); background: var(--ae-trim-b); }
+
+/* Ethiopian tibeb on undyed cotton */
+.ae-trim--tibeb { --ae-trim-ground: var(--ae-color-pigment-cotton); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06); }
+/* Tibeb in gold and cotton on maroon */
+.ae-trim--tibeb-maroon { --ae-trim-ground: var(--ae-color-pigment-maroon); --ae-trim-a: var(--ae-color-pigment-ochre); --ae-trim-b: var(--ae-color-pigment-cotton); }
+/* Tibetan key, gold on maroon */
+.ae-trim--key { --ae-trim-h: 26px; --ae-trim-ground: var(--ae-color-pigment-maroon); --ae-trim-a: var(--ae-color-pigment-ochre); --ae-trim-b: transparent; --ae-trim-mask-a: var(--ae-pattern-key); --ae-trim-mask-b: none; }
+.ae-trim--key::before { inset: 3px 0; }
+/* Tibetan shambu valance: pleated fabric hanging from the top of a section */
+.ae-trim--shambu { --ae-trim-h: 44px; --ae-trim-a: var(--ae-color-pigment-maroon); --ae-trim-b: var(--ae-color-pigment-ochre); --ae-trim-mask-a: var(--ae-pattern-shambu); --ae-trim-mask-b: none; filter: drop-shadow(0 3px 3px rgba(20, 20, 18, 0.25)); }
+.ae-trim--shambu::after { -webkit-mask: none; mask: none; inset: 0 0 auto; height: 3px; }
+.ae-trim--shambu-indigo { --ae-trim-a: var(--ae-color-pigment-indigo); }
+/* Swiss Scherenschnitt: black paper-cut border */
+.ae-trim--scherenschnitt { --ae-trim-h: 48px; --ae-trim-a: var(--ae-color-ink); --ae-trim-b: transparent; --ae-trim-mask-a: var(--ae-pattern-scherenschnitt); --ae-trim-mask-b: none; filter: drop-shadow(0 1px 1px rgba(20, 20, 18, 0.3)); }
+
+/* Torn paper edge on the bottom (or top) of a panel */
+.ae-torn-bottom {
+  -webkit-mask: linear-gradient(#000, #000) top / 100% calc(100% - 23px) no-repeat, var(--ae-edge-torn) left bottom / 400px 24px repeat-x;
+  mask: linear-gradient(#000, #000) top / 100% calc(100% - 23px) no-repeat, var(--ae-edge-torn) left bottom / 400px 24px repeat-x;
+  padding-bottom: calc(var(--ae-space-8) + 12px);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.ae-torn-top {
+  -webkit-mask: linear-gradient(#000, #000) bottom / 100% calc(100% - 23px) no-repeat, var(--ae-edge-torn) left top / 400px 24px repeat-x;
+  mask: linear-gradient(#000, #000) bottom / 100% calc(100% - 23px) no-repeat, var(--ae-edge-torn) left top / 400px 24px repeat-x;
+  transform: none;
+}
+/* masks hide box-shadows: wrap torn panels in .ae-lift to keep the paper's shadow */
+.ae-lift { filter: drop-shadow(0 2px 2px rgba(20, 20, 18, 0.18)) drop-shadow(0 8px 10px rgba(20, 20, 18, 0.12)); }
+
+/* Stitching: a sewn seam inside the edge of a non-interactive panel */
+.ae-stitched { outline: 1.5px dashed var(--ae-color-thread); outline-offset: -9px; }
+.ae-stitched--cotton { outline-color: var(--ae-color-pigment-cotton); }
+
+/* Letterpress: headings pressed into the paper */
+.ae-letterpress { text-shadow: var(--ae-shadow-letterpress); }
+
+/* Deckle: rough hand-cut corners on a sheet */
+.ae-deckle { border-radius: 3px 7px 4px 9px / 8px 3px 9px 4px; }
+
+/* Night follows the OS when no data-theme is set */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ae-canvas-image: var(--ae-texture-forest-deep);
+    --ae-canvas-wash: rgba(30, 33, 29, 0.4);
+    --ae-surface-paper-image: var(--ae-texture-forest-deep);
+  }
+  :root:not([data-theme="light"]) .ae-plate { background-image: linear-gradient(rgba(39, 42, 37, 0.82), rgba(39, 42, 37, 0.82)), var(--ae-texture-forest-deep); }
+  :root:not([data-theme="light"]) :is(.ae-surface--fiber, .ae-surface--linen, .ae-surface--kraft, .ae-nav) {
+    --ae-color-surface: #ffffff;
+    --ae-color-limestone: #e9e5da;
+    --ae-color-border: #d8d4c9;
+    --ae-color-border-strong: #7e8377;
+    --ae-color-ink: #292b28;
+    --ae-color-ink-muted: #686b63;
+    --ae-color-ink-inverse: #ffffff;
+    --ae-color-forest: #526451;
+    --ae-color-forest-deep: #3d4c3d;
+    --ae-color-maroon: #704653;
+    --ae-color-indigo: #48556d;
+    --ae-color-success: #42684f;
+    --ae-color-warning: #956b2d;
+    --ae-color-danger: #a3433d;
+    --ae-color-info: #435f77;
+    --ae-shadow-sheet: 0 1px 1px rgba(41, 43, 40, 0.10), 0 3px 6px rgba(41, 43, 40, 0.08), 0 12px 20px -10px rgba(41, 43, 40, 0.22);
+    --ae-shadow-raised: 0 3px 0 #2c372c, 0 4px 8px rgba(41, 43, 40, 0.22);
+    --ae-shadow-raised-quiet: 0 2px 0 #b9b3a4, 0 3px 6px rgba(41, 43, 40, 0.14);
+    --ae-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.30);
+    --ae-shadow-deboss: inset 0 2px 3px rgba(41, 43, 40, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.70);
+    --ae-shadow-letterpress: 0 1px 0 rgba(255, 255, 255, 0.65);
+    color-scheme: light;
+  }
+}

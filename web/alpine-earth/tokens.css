@@ -1,0 +1,182 @@
+/* Alpine Earth — design tokens, compiled from tokens.json. Light = "Paper", dark = "Night". */
+@font-face { font-family: "Source Sans 3"; src: url("fonts/SourceSans3-Variable.woff2") format("woff2"); font-weight: 200 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Source Sans 3"; src: url("fonts/SourceSans3-Italic-Variable.woff2") format("woff2"); font-weight: 200 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url("fonts/SourceSerif4-Variable.woff2") format("woff2"); font-weight: 200 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Source Serif 4"; src: url("fonts/SourceSerif4-Italic-Variable.woff2") format("woff2"); font-weight: 200 900; font-style: italic; font-display: swap; }
+:root,
+[data-theme="light"] {
+  --ae-color-paper: #f7f5ef;
+  --ae-color-surface: #ffffff;
+  --ae-color-limestone: #e9e5da;
+  --ae-color-border: #d8d4c9;
+  --ae-color-border-strong: #7e8377;
+  --ae-color-ink: #292b28;
+  --ae-color-ink-muted: #686b63;
+  --ae-color-ink-inverse: #ffffff;
+  --ae-color-on-material: #292b28;
+  --ae-color-on-forest-material: #f7f5ef;
+  --ae-color-thread: #b18445;
+  --ae-color-sheet: #e3d8c6;
+  --ae-color-forest: #526451;
+  --ae-color-forest-deep: #3d4c3d;
+  --ae-color-maroon: #704653;
+  --ae-color-ochre: #b18445;
+  --ae-color-clay: #a85f48;
+  --ae-color-indigo: #48556d;
+  --ae-color-pigment-maroon: #704653;
+  --ae-color-pigment-ochre: #c4954e;
+  --ae-color-pigment-forest: #3d4c3d;
+  --ae-color-pigment-clay: #a85f48;
+  --ae-color-pigment-indigo: #3c4a63;
+  --ae-color-pigment-cotton: #f3eee2;
+  --ae-color-success: #42684f;
+  --ae-color-warning: #956b2d;
+  --ae-color-danger: #a3433d;
+  --ae-color-info: #435f77;
+  --ae-color-wegweiser: #f7a600;
+  --ae-color-on-wegweiser: #1a1a18;
+  --ae-color-sign-white: #fdfdfb;
+  --ae-color-sign-edge: #7a7a76;
+  --ae-color-bergweg: #e6001b;
+  --ae-color-alpinweg: #1f5fa8;
+  --ae-shadow-sm: 0 1px 2px rgba(41, 43, 40, 0.10);
+  --ae-shadow-md: 0 6px 20px rgba(41, 43, 40, 0.14);
+  --ae-shadow-sheet: 0 1px 1px rgba(41, 43, 40, 0.10), 0 3px 6px rgba(41, 43, 40, 0.08), 0 12px 20px -10px rgba(41, 43, 40, 0.22);
+  --ae-shadow-stack: 5px 5px 0 -1px #e3d8c6, 5px 5px 0 0 rgba(41, 43, 40, 0.14), 10px 10px 0 -1px #d6c9b3, 10px 10px 0 0 rgba(41, 43, 40, 0.12), 0 14px 24px -10px rgba(41, 43, 40, 0.28);
+  --ae-shadow-raised: 0 3px 0 #2c372c, 0 4px 8px rgba(41, 43, 40, 0.22);
+  --ae-shadow-raised-quiet: 0 2px 0 #b9b3a4, 0 3px 6px rgba(41, 43, 40, 0.14);
+  --ae-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.30);
+  --ae-shadow-deboss: inset 0 2px 3px rgba(41, 43, 40, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.70);
+  --ae-shadow-letterpress: 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+[data-theme="dark"] {
+  --ae-color-paper: #1e211d;
+  --ae-color-surface: #272a25;
+  --ae-color-limestone: #31352f;
+  --ae-color-border: #464a42;
+  --ae-color-border-strong: #8a8d82;
+  --ae-color-ink: #ede9df;
+  --ae-color-ink-muted: #a9ac9f;
+  --ae-color-ink-inverse: #1e211d;
+  --ae-color-on-material: #292b28;
+  --ae-color-on-forest-material: #f7f5ef;
+  --ae-color-thread: #d2a764;
+  --ae-color-sheet: #3a4136;
+  --ae-color-forest: #9db39a;
+  --ae-color-forest-deep: #b8cbb5;
+  --ae-color-maroon: #c99aa8;
+  --ae-color-ochre: #d2a764;
+  --ae-color-clay: #d58c73;
+  --ae-color-indigo: #9ba8c2;
+  --ae-color-pigment-maroon: #704653;
+  --ae-color-pigment-ochre: #c4954e;
+  --ae-color-pigment-forest: #3d4c3d;
+  --ae-color-pigment-clay: #a85f48;
+  --ae-color-pigment-indigo: #3c4a63;
+  --ae-color-pigment-cotton: #f3eee2;
+  --ae-color-success: #8dbb98;
+  --ae-color-warning: #d6a85c;
+  --ae-color-danger: #e08a80;
+  --ae-color-info: #8fb0cc;
+  --ae-color-wegweiser: #f7a600;
+  --ae-color-on-wegweiser: #1a1a18;
+  --ae-color-sign-white: #fdfdfb;
+  --ae-color-sign-edge: #7a7a76;
+  --ae-color-bergweg: #e6001b;
+  --ae-color-alpinweg: #1f5fa8;
+  --ae-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --ae-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.50);
+  --ae-shadow-sheet: 0 1px 1px rgba(0, 0, 0, 0.40), 0 3px 6px rgba(0, 0, 0, 0.30), 0 12px 20px -10px rgba(0, 0, 0, 0.55);
+  --ae-shadow-stack: 5px 5px 0 -1px #3a4136, 5px 5px 0 0 rgba(0, 0, 0, 0.45), 10px 10px 0 -1px #31372e, 10px 10px 0 0 rgba(0, 0, 0, 0.40), 0 14px 24px -10px rgba(0, 0, 0, 0.60);
+  --ae-shadow-raised: 0 3px 0 #6c7e69, 0 4px 8px rgba(0, 0, 0, 0.50);
+  --ae-shadow-raised-quiet: 0 2px 0 #14160f, 0 3px 6px rgba(0, 0, 0, 0.45);
+  --ae-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.45);
+  --ae-shadow-deboss: inset 0 2px 3px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  --ae-shadow-letterpress: 0 -1px 0 rgba(0, 0, 0, 0.60);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ae-color-paper: #1e211d;
+    --ae-color-surface: #272a25;
+    --ae-color-limestone: #31352f;
+    --ae-color-border: #464a42;
+    --ae-color-border-strong: #8a8d82;
+    --ae-color-ink: #ede9df;
+    --ae-color-ink-muted: #a9ac9f;
+    --ae-color-ink-inverse: #1e211d;
+    --ae-color-on-material: #292b28;
+    --ae-color-on-forest-material: #f7f5ef;
+    --ae-color-thread: #d2a764;
+    --ae-color-sheet: #3a4136;
+    --ae-color-forest: #9db39a;
+    --ae-color-forest-deep: #b8cbb5;
+    --ae-color-maroon: #c99aa8;
+    --ae-color-ochre: #d2a764;
+    --ae-color-clay: #d58c73;
+    --ae-color-indigo: #9ba8c2;
+    --ae-color-pigment-maroon: #704653;
+    --ae-color-pigment-ochre: #c4954e;
+    --ae-color-pigment-forest: #3d4c3d;
+    --ae-color-pigment-clay: #a85f48;
+    --ae-color-pigment-indigo: #3c4a63;
+    --ae-color-pigment-cotton: #f3eee2;
+    --ae-color-success: #8dbb98;
+    --ae-color-warning: #d6a85c;
+    --ae-color-danger: #e08a80;
+    --ae-color-info: #8fb0cc;
+    --ae-color-wegweiser: #f7a600;
+    --ae-color-on-wegweiser: #1a1a18;
+    --ae-color-sign-white: #fdfdfb;
+    --ae-color-sign-edge: #7a7a76;
+    --ae-color-bergweg: #e6001b;
+    --ae-color-alpinweg: #1f5fa8;
+    --ae-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+    --ae-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.50);
+    --ae-shadow-sheet: 0 1px 1px rgba(0, 0, 0, 0.40), 0 3px 6px rgba(0, 0, 0, 0.30), 0 12px 20px -10px rgba(0, 0, 0, 0.55);
+    --ae-shadow-stack: 5px 5px 0 -1px #3a4136, 5px 5px 0 0 rgba(0, 0, 0, 0.45), 10px 10px 0 -1px #31372e, 10px 10px 0 0 rgba(0, 0, 0, 0.40), 0 14px 24px -10px rgba(0, 0, 0, 0.60);
+    --ae-shadow-raised: 0 3px 0 #6c7e69, 0 4px 8px rgba(0, 0, 0, 0.50);
+    --ae-shadow-raised-quiet: 0 2px 0 #14160f, 0 3px 6px rgba(0, 0, 0, 0.45);
+    --ae-shadow-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.45);
+    --ae-shadow-deboss: inset 0 2px 3px rgba(0, 0, 0, 0.55), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+    --ae-shadow-letterpress: 0 -1px 0 rgba(0, 0, 0, 0.60);
+    color-scheme: dark;
+  }
+}
+:root {
+  --ae-space-1: 4px;
+  --ae-space-2: 8px;
+  --ae-space-3: 12px;
+  --ae-space-4: 16px;
+  --ae-space-5: 20px;
+  --ae-space-6: 24px;
+  --ae-space-8: 32px;
+  --ae-space-10: 40px;
+  --ae-space-12: 48px;
+  --ae-space-16: 64px;
+  --ae-radius-sm: 4px;
+  --ae-radius-md: 8px;
+  --ae-radius-lg: 12px;
+  --ae-radius-xl: 16px;
+  --ae-radius-sign: 2px;
+  --ae-texture-whisper: 0.08;
+  --ae-texture-standard: 0.16;
+  --ae-texture-expressive: 0.28;
+  --ae-pattern-quiet: 0.10;
+  --ae-pattern-standard: 0.24;
+  --ae-pattern-bold: 0.55;
+  --font-sans: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+}
+.display { font-family: var(--font-serif); font-size: 44px; line-height: 1.1; font-weight: 600; letter-spacing: -0.01em; }
+.quote { font-family: var(--font-serif); font-size: 24px; line-height: 1.35; font-weight: 400; font-style: italic; }
+.h1 { font-family: var(--font-sans); font-size: 32px; line-height: 1.2; font-weight: 600; }
+.h2 { font-family: var(--font-sans); font-size: 24px; line-height: 1.25; font-weight: 600; }
+.h3 { font-family: var(--font-sans); font-size: 20px; line-height: 1.3; font-weight: 600; }
+.h4 { font-family: var(--font-sans); font-size: 16px; line-height: 1.4; font-weight: 600; }
+.body-lg { font-family: var(--font-sans); font-size: 18px; line-height: 1.55; font-weight: 400; }
+.body { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; font-weight: 400; }
+.body-sm { font-family: var(--font-sans); font-size: 14px; line-height: 1.45; font-weight: 400; }
+.label { font-family: var(--font-sans); font-size: 13px; line-height: 1.35; font-weight: 600; letter-spacing: 0.02em; }
+.sign { font-family: var(--font-sans); font-size: 17px; line-height: 1.2; font-weight: 600; }
+@media (max-width: 640px) { .display { font-size: 36px; } }
