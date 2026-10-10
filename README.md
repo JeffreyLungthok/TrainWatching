@@ -89,6 +89,7 @@ activity for 60 days. If that happens, re-enable the workflow on the Actions tab
 **Website** (`web/app.js`)
 - Uses Swiss local time regardless of the viewer's time zone (`Intl` with `Europe/Zurich`), including daylight saving time.
 - Keeps a small window of active trips (the trail length behind now plus a few minutes ahead) and rebuilds it as time moves on. Each trip gets per-vertex timestamps interpolated by distance along the track between its scheduled departure and arrival, with dwell times at stops.
+- Shows only what lies inside Switzerland. Tracks, trails and lakes are clipped at the Swiss border (deck.gl `MaskExtension`), and trains and stations outside it are neither drawn nor counted. Liechtenstein and the Büsingen and Campione enclaves count as outside.
 - Uses deck.gl `TripsLayer` for the fading trails and scatterplot layers for the dots. deck.gl 9.4 is bundled in `web/vendor`, so the site needs no CDN.
 
 ## Limitations
