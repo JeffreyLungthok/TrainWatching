@@ -114,6 +114,69 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // ---------------------------------------------------------------------------------------
+  // Swiss border: only what lies inside Switzerland is drawn
+  // ---------------------------------------------------------------------------------------
+  // The basemap's "country" layer also holds Liechtenstein and the Büsingen and Campione
+  // enclaves. Switzerland is the feature with the longest outer ring (the enclaves are its holes).
+  function swissFeature(basemap) {
+    let best = null, bestLen = -1;
+    for (const f of basemap.features) {
+      if (f.properties.layer !== 'country') continue;
+      const len = Math.max(...f.geometry.coordinates.map((poly) => poly[0].length));
+      if (len > bestLen) { best = f; bestLen = len; }
+    }
+    return best;
+  }
+
+  // Point-in-polygon test (even-odd over all rings, so holes count as outside), sped up with a
+  // grid: cells that no border segment touches are tested once at their centre and cached.
+  function makeBorderTest(feature) {
+    const rings = feature.geometry.coordinates.flat();
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const r of rings) for (const [x, y] of r) {
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    const exact = (x, y) => {
+      let inside = false;
+      for (const r of rings) {
+        for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+          const [xi, yi] = r[i], [xj, yj] = r[j];
+          if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+        }
+      }
+      return inside;
+    };
+    const CELL = 0.01;
+    const nx = Math.ceil((x1 - x0) / CELL) + 1, ny = Math.ceil((y1 - y0) / CELL) + 1;
+    const grid = new Uint8Array(nx * ny);   // 0 unknown, 1 outside, 2 inside, 3 border cell
+    for (const r of rings) {
+      for (let i = 1; i < r.length; i++) {
+        const [ax, ay] = r[i - 1], [bx, by] = r[i];
+        const steps = Math.ceil(Math.hypot(bx - ax, by - ay) / (CELL / 4)) + 1;
+        for (let k = 0; k <= steps; k++) {
+          const cx = Math.floor((ax + ((bx - ax) * k) / steps - x0) / CELL);
+          const cy = Math.floor((ay + ((by - ay) * k) / steps - y0) / CELL);
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            const gx = cx + dx, gy = cy + dy;
+            if (gx >= 0 && gy >= 0 && gx < nx && gy < ny) grid[gy * nx + gx] = 3;
+          }
+        }
+      }
+    }
+    return (x, y) => {
+      if (x < x0 || x > x1 || y < y0 || y > y1) return false;
+      const cx = Math.floor((x - x0) / CELL), cy = Math.floor((y - y0) / CELL);
+      const c = cy * nx + cx;
+      if (grid[c] === 0) grid[c] = exact(x0 + (cx + 0.5) * CELL, y0 + (cy + 0.5) * CELL) ? 2 : 1;
+      return grid[c] === 3 ? exact(x, y) : grid[c] === 2;
+    };
+  }
+
+  // Lines (tracks, trails, lakes) are clipped to the border on the GPU by deck.gl's MaskExtension.
+  const MASK_ID = 'swiss-border-mask';
+  const MASKED = { extensions: [new deck.MaskExtension()], maskId: MASK_ID };
+
+  // ---------------------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------------------
   const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
@@ -177,9 +240,12 @@
     const services = tt.services.map((b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
     const T = tt.trips;
     const [y, m, d] = tt.meta.windowStart.split('-').map(Number);
+    const swiss = swissFeature(basemap);
+    const inSwitzerland = makeBorderTest(swiss);
     return {
-      basemap, legs, timings, maxDur, services,
+      basemap, legs, timings, maxDur, services, swiss, inSwitzerland,
       stops: net.stops,
+      swissStops: net.stops.filter((s) => inSwitzerland(s[1], s[2])),
       patterns: tt.patterns,
       routes: tt.routes.map(([label, cat, type]) => ({ label, cat, type, catId: categorize(cat, type) })),
       headsigns: tt.headsigns,
@@ -322,8 +388,9 @@
     const byLayer = (name) => feats.filter((f) => f.properties.layer === name);
     const v = state.themeVersion;
     return [
+      new deck.GeoJsonLayer({ id: MASK_ID, data: [D.swiss], operation: 'mask' }),
       new deck.GeoJsonLayer({
-        id: `land-${v}`, data: byLayer('country'), filled: true, stroked: true,
+        id: `land-${v}`, data: [D.swiss], filled: true, stroked: true,
         getFillColor: th.land, getLineColor: th.landEdge, lineWidthUnits: 'pixels', getLineWidth: 1.2,
       }),
       new deck.GeoJsonLayer({
@@ -331,11 +398,11 @@
         getLineColor: th.canton, lineWidthUnits: 'pixels', getLineWidth: 1,
       }),
       new deck.GeoJsonLayer({
-        id: `lakes-${v}`, data: byLayer('lakes'), filled: true, stroked: false, getFillColor: th.lake,
+        id: `lakes-${v}`, data: byLayer('lakes'), filled: true, stroked: false, getFillColor: th.lake, ...MASKED,
       }),
       new deck.PathLayer({
         id: `tracks-${v}`, data: D.legs, getPath: (d) => d, positionFormat: 'XY', _pathType: 'open',
-        getColor: th.track, widthUnits: 'pixels', getWidth: 1.1, jointRounded: true,
+        getColor: th.track, widthUnits: 'pixels', getWidth: 1.1, jointRounded: true, ...MASKED,
       }),
     ];
   }
@@ -348,7 +415,7 @@
     const allCities = state.zoom >= 8.2;
     return [
       new deck.ScatterplotLayer({
-        id: `stops-${v}`, data: D.stops, visible: showStops, pickable: showStops,
+        id: `stops-${v}`, data: D.swissStops, visible: showStops, pickable: showStops,
         getPosition: (d) => [d[1], d[2]], getFillColor: th.bg, getLineColor: th.station,
         stroked: true, lineWidthUnits: 'pixels', getLineWidth: 1.5, radiusUnits: 'pixels', getRadius: 3.5,
       }),
@@ -377,7 +444,7 @@
         positionFormat: 'XY', _pathType: 'open',
         widthUnits: 'pixels', getWidth: 2.6, widthScale: scale, widthMinPixels: 1.4,
         capRounded: true, jointRounded: true,
-        trailLength: state.trailMin * 60, currentTime: secs, fadeTrail: true,
+        trailLength: state.trailMin * 60, currentTime: secs, fadeTrail: true, ...MASKED,
         updateTriggers: { getColor: v },
       }),
       new deck.ScatterplotLayer({
@@ -541,6 +608,7 @@
     for (const tr of built.list) {
       if (clock.secs >= tr.t0 && clock.secs <= tr.t1) {
         positionAt(tr, clock.secs);
+        if (!D.inSwitzerland(tr.pos[0], tr.pos[1])) continue;
         running.push(tr);
         counts[tr.route.catId]++;
       }
